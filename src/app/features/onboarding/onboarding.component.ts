@@ -1,18 +1,20 @@
-import { Component } from "@angular/core";
+import { Component, inject } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from "@angular/forms";
+import { FormBuilder, ReactiveFormsModule, Validators } from "@angular/forms";
 import { Router } from "@angular/router";
 
-import { MatStepperModule } from "@angular/material/stepper";
-import { MatButtonModule } from "@angular/material/button";
+import { MatCardModule } from "@angular/material/card";
+import { MatStepperModule, MatStepper } from "@angular/material/stepper";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
-import { MatCardModule } from "@angular/material/card";
-import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
-import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
+import { MatButtonModule } from "@angular/material/button";
+import { MatProgressBarModule } from "@angular/material/progress-bar";
 
 import { BusinessService } from "../../core/services/business.service";
-import { CalendarService, CalendarStatus } from "../../core/services/calendar.service";
+import { WhatsAppService } from "../../core/services/whatsapp.service";
+import { CalendarService } from "../../core/services/calendar.service";
+
+type GoogleConnectUrlResponse = { url: string };
 
 @Component({
   selector: "app-onboarding",
@@ -20,132 +22,120 @@ import { CalendarService, CalendarStatus } from "../../core/services/calendar.se
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    MatCardModule,
     MatStepperModule,
-    MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
-    MatCardModule,
-    MatSnackBarModule,
-    MatProgressSpinnerModule,
+    MatButtonModule,
+    MatProgressBarModule,
   ],
   templateUrl: "./onboarding.component.html",
   styleUrls: ["./onboarding.component.scss"],
 })
 export class OnboardingComponent {
-  businessForm!: FormGroup;
-  whatsappForm!: FormGroup;
+  private fb = inject(FormBuilder);
+  private router = inject(Router);
 
-  calendarStatus: CalendarStatus | null = null;
+  private businessService = inject(BusinessService);
+  private whatsappService = inject(WhatsAppService);
+  private calendarService = inject(CalendarService);
 
   savingBusiness = false;
   savingWhatsapp = false;
   loadingCalendar = false;
 
-  constructor(
-    private fb: FormBuilder,
-    private business: BusinessService,
-    private calendar: CalendarService,
-    private snack: MatSnackBar,
-    private router: Router
-  ) {
-    this.businessForm = this.fb.group({
-      name: ["", [Validators.required]],
-      timezone: ["Asia/Jerusalem", [Validators.required]],
-    });
+  calendarStatus: any = null;
 
-    this.whatsappForm = this.fb.group({
-      wabaId: ["", [Validators.required]],
-      phoneNumberId: ["", [Validators.required]],
-    });
+  businessForm = this.fb.group({
+    name: ["", [Validators.required, Validators.minLength(2)]],
+    timezone: ["Asia/Jerusalem", [Validators.required]],
+  });
 
-    // load calendar status stream
-    this.loadingCalendar = true;
-    this.calendar.status.subscribe({
-      next: (s: CalendarStatus) => {
-        this.calendarStatus = s;
-        this.loadingCalendar = false;
-      },
-      error: () => {
-        this.loadingCalendar = false;
-      },
-    });
+  whatsappForm = this.fb.group({
+    wabaId: ["", [Validators.required]],
+    phoneNumberId: ["", [Validators.required]],
+    accessToken: ["", [Validators.required]],
+  });
+
+  ngOnInit() {
+    this.refreshCalendarStatus();
   }
 
-  saveBusinessAndNext(stepper: any) {
-    if (this.businessForm.invalid) {
-      this.snack.open("Fill business name + timezone", "OK", { duration: 2500 });
-      return;
-    }
+  saveBusinessAndNext(stepper: MatStepper) {
+    if (this.businessForm.invalid) return;
+
     this.savingBusiness = true;
-
-    this.business.updateBusiness(this.businessForm.value).subscribe({
-      next: () => {
-        this.savingBusiness = false;
-        this.snack.open("Business saved", "OK", { duration: 1500 });
-        stepper.next();
-      },
-      error: (err: unknown) => {
-        this.savingBusiness = false;
-        this.snack.open("Failed saving business", "OK", { duration: 2500 });
-        console.error(err);
-      },
-    });
-  }
-
-  saveWhatsappAndNext(stepper: any) {
-    if (this.whatsappForm.invalid) {
-      this.snack.open("Fill WhatsApp WABA ID + Phone Number ID", "OK", { duration: 2500 });
-      return;
-    }
-    this.savingWhatsapp = true;
-
-    // backend endpoint you already have: POST /api/whatsapp/connect
-    // we call it via BusinessService? no — simplest is direct call with HttpClient,
-    // but keeping minimal changes: use fetch via CalendarService? no.
-    // So for now: reuse BusinessService updateBusiness to store it in business model
-    // (if your backend stores WhatsApp data elsewhere, replace this call with WhatsAppService).
     const payload = {
-      wabaId: this.whatsappForm.value.wabaId,
-      phoneNumberId: this.whatsappForm.value.phoneNumberId,
+      name: this.businessForm.value.name!,
+      timezone: this.businessForm.value.timezone!,
     };
 
-    this.business.updateBusiness(payload).subscribe({
+    this.businessService.updateBusiness(payload).subscribe({
       next: () => {
-        this.savingWhatsapp = false;
-        this.snack.open("WhatsApp saved", "OK", { duration: 1500 });
+        this.savingBusiness = false;
         stepper.next();
       },
-      error: (err: any) => {
+      error: (_err: unknown) => {
+        this.savingBusiness = false;
+        alert("Failed saving business");
+      },
+    });
+  }
+
+  saveWhatsappAndNext(stepper: MatStepper) {
+    if (this.whatsappForm.invalid) return;
+
+    this.savingWhatsapp = true;
+
+    const payload = {
+      wabaId: this.whatsappForm.value.wabaId!,
+      phoneNumberId: this.whatsappForm.value.phoneNumberId!,
+      accessToken: this.whatsappForm.value.accessToken!,
+    };
+
+    this.whatsappService.connect(payload).subscribe({
+      next: () => {
         this.savingWhatsapp = false;
-        // duplicate key / already used phoneNumberId, etc.
-        const msg = err?.error?.message ?? "Failed saving WhatsApp settings";
-        this.snack.open(msg, "OK", { duration: 3000 });
-        console.error(err);
+        stepper.next();
+      },
+      error: (_err: unknown) => {
+        this.savingWhatsapp = false;
+        alert("Failed saving WhatsApp settings");
       },
     });
   }
 
   connectGoogle() {
-    this.calendar.getConnectUrl().subscribe({
-      next: ({ url }) => {
-        // open Google consent in a new tab
-        window.open(url, "_blank");
-        this.snack.open("Complete Google consent, then come back — we’ll refresh.", "OK", {
-          duration: 3500,
-        });
+    this.loadingCalendar = true;
+
+    this.calendarService.getConnectUrl().subscribe({
+      next: (res: GoogleConnectUrlResponse) => {
+        this.loadingCalendar = false;
+        if (!res?.url) return alert("No connect URL returned");
+        window.open(res.url, "_blank", "noopener,noreferrer");
       },
-      error: (err) => {
-        this.snack.open("Failed to start Google connect", "OK", { duration: 2500 });
-        console.error(err);
+      error: (_err: unknown) => {
+        this.loadingCalendar = false;
+        alert("Failed getting Google connect URL");
       },
     });
   }
 
   refreshCalendarStatus() {
-    this.calendar.refresh();
+    this.loadingCalendar = true;
+
+    this.calendarService.getConnections().subscribe({
+      next: (s: any) => {
+        this.calendarStatus = s;
+        this.loadingCalendar = false;
+      },
+      error: (_err: unknown) => {
+        this.loadingCalendar = false;
+      },
+    });
   }
 
   finish() {
-    this.router.navigateByUrl("/dashboard");
+    this.router.navigateByUrl("/");
   }
 }

@@ -36,14 +36,6 @@
       <ng-template matStepLabel>WhatsApp</ng-template>
 
       <div style="margin-top: 12px;">
-        <!-- Optional status line (safe even if you don't have whatsappStatus loaded) -->
-        <p style="margin: 0 0 8px 0; opacity: 0.9;">
-          Status:
-          <strong>
-            {{ whatsappStatus?.connected ? "Connected ✅" : "Not connected ❌" }}
-          </strong>
-        </p>
-
         <form [formGroup]="whatsappForm" style="display: grid; gap: 12px; margin-top: 12px;">
           <mat-form-field appearance="outline">
             <mat-label>WABA ID</mat-label>
