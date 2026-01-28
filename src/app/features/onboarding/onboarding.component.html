@@ -1,93 +1,111 @@
-<div class="wrap">
-  <mat-card>
-    <h1>Onboarding</h1>
-    <p>Connect your business, WhatsApp, and Google Calendar.</p>
-  </mat-card>
+<mat-card style="max-width: 900px; margin: 24px auto; padding: 16px;">
+  <h2 style="margin-top: 0;">Onboarding</h2>
 
-  <mat-card style="margin-top: 16px;">
-    <mat-stepper linear>
-      <!-- Step 1 -->
-      <mat-step [stepControl]="businessForm">
-        <ng-template matStepLabel>Business profile</ng-template>
+  <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
 
-        <form [formGroup]="businessForm" class="row">
-          <mat-form-field appearance="outline" class="full">
-            <mat-label>Business name</mat-label>
-            <input matInput formControlName="businessName" />
-          </mat-form-field>
+  <mat-stepper linear #stepper>
+    <!-- Step 1: Business -->
+    <mat-step [completed]="businessForm.valid">
+      <ng-template matStepLabel>Business Profile</ng-template>
 
-          <mat-form-field appearance="outline" class="full">
-            <mat-label>Timezone</mat-label>
-            <input matInput formControlName="timezone" />
-          </mat-form-field>
-        </form>
+      <form [formGroup]="businessForm" style="display: grid; gap: 12px; margin-top: 12px;">
+        <mat-form-field appearance="outline">
+          <mat-label>Business name</mat-label>
+          <input matInput formControlName="name" placeholder="e.g., Max Dental Clinic" />
+        </mat-form-field>
 
-        <div style="margin-top: 16px; display:flex; gap: 12px;">
-          <button mat-raised-button color="primary" (click)="saveBusiness()" [disabled]="businessForm.invalid || loadingBusiness">
-            {{ loadingBusiness ? "Saving..." : "Save" }}
+        <mat-form-field appearance="outline">
+          <mat-label>Timezone</mat-label>
+          <input matInput formControlName="timezone" placeholder="Asia/Jerusalem" />
+        </mat-form-field>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+          <button mat-raised-button color="primary" (click)="saveBusinessAndContinue(stepper)" [disabled]="loading">
+            Save & Continue
           </button>
-          <button mat-button matStepperNext [disabled]="businessForm.invalid">Next</button>
         </div>
-      </mat-step>
+      </form>
+    </mat-step>
 
-      <!-- Step 2 -->
-      <mat-step [stepControl]="whatsappForm">
-        <ng-template matStepLabel>WhatsApp connection</ng-template>
+    <!-- Step 2: WhatsApp -->
+    <mat-step>
+      <ng-template matStepLabel>WhatsApp</ng-template>
 
-        <div class="status" *ngIf="waStatus">
-          <b>Status:</b> {{ waStatus.connected ? "Connected" : "Not connected" }}
-        </div>
+      <div style="margin-top: 12px;">
+        <p>
+          Status:
+          <strong>
+            {{ whatsappStatus?.connected ? "Connected ✅" : "Not connected ❌" }}
+          </strong>
+        </p>
 
-        <form [formGroup]="whatsappForm" class="row">
-          <mat-form-field appearance="outline" class="full">
+        <form [formGroup]="whatsappForm" style="display: grid; gap: 12px; margin-top: 12px;">
+          <mat-form-field appearance="outline">
             <mat-label>WABA ID</mat-label>
-            <input matInput formControlName="wabaId" />
+            <input matInput formControlName="wabaId" placeholder="e.g., 1234567890" />
           </mat-form-field>
 
-          <mat-form-field appearance="outline" class="full">
+          <mat-form-field appearance="outline">
             <mat-label>Phone Number ID</mat-label>
-            <input matInput formControlName="phoneNumberId" />
+            <input matInput formControlName="phoneNumberId" placeholder="e.g., 9876543210" />
           </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Access Token (Permanent recommended)</mat-label>
+            <input matInput formControlName="accessToken" placeholder="EAAG..." />
+          </mat-form-field>
+
+          <div style="display: flex; justify-content: space-between; gap: 12px; align-items: center;">
+            <button mat-button matStepperPrevious [disabled]="loading">Back</button>
+
+            <button mat-raised-button color="primary" (click)="connectWhatsAppAndContinue(stepper)" [disabled]="loading">
+              Save & Continue
+            </button>
+          </div>
         </form>
 
-        <div style="margin-top: 16px; display:flex; gap: 12px;">
-          <button mat-raised-button color="primary" (click)="connectWhatsApp()" [disabled]="whatsappForm.invalid || loadingWa">
-            {{ loadingWa ? "Saving..." : "Save WhatsApp" }}
+        <p style="margin-top: 16px; opacity: 0.8;">
+          Tip: Your client can generate these in Meta → WhatsApp → API Setup. You can keep a manual flow now and later add Embedded Signup.
+        </p>
+      </div>
+    </mat-step>
+
+    <!-- Step 3: Google -->
+    <mat-step>
+      <ng-template matStepLabel>Google Calendar</ng-template>
+
+      <div style="margin-top: 12px;">
+        <p>
+          Status:
+          <strong>
+            {{ calendarStatus?.connected ? "Connected ✅" : "Not connected ❌" }}
+          </strong>
+        </p>
+
+        <div style="display: flex; justify-content: space-between; gap: 12px; margin-top: 16px;">
+          <button mat-button matStepperPrevious [disabled]="loading">Back</button>
+
+          <button mat-raised-button color="primary" (click)="connectGoogle()" [disabled]="loading">
+            Connect Google
           </button>
-          <button mat-button matStepperPrevious>Back</button>
-          <button mat-button matStepperNext [disabled]="whatsappForm.invalid">Next</button>
         </div>
-      </mat-step>
+      </div>
+    </mat-step>
 
-      <!-- Step 3 -->
-      <mat-step>
-        <ng-template matStepLabel>Google Calendar</ng-template>
+    <!-- Step 4: Finish -->
+    <mat-step>
+      <ng-template matStepLabel>Finish</ng-template>
 
-        <div class="status" *ngIf="calStatus">
-          <b>Status:</b> {{ calStatus.connected ? "Connected" : "Not connected" }}
-          <br />
-          <b>Calendar:</b> {{ calStatus.calendarId }}
-        </div>
+      <div style="margin-top: 12px;">
+        <p>All set. You can now use the dashboard.</p>
 
-        <div style="margin-top: 16px; display:flex; gap: 12px;">
-          <button mat-raised-button color="primary" (click)="connectGoogle()" [disabled]="loadingGoogle">
-            {{ loadingGoogle ? "Opening..." : (calStatus?.connected ? "Reconnect Google" : "Connect Google") }}
+        <div style="display: flex; justify-content: space-between; gap: 12px;">
+          <button mat-button matStepperPrevious [disabled]="loading">Back</button>
+          <button mat-raised-button color="primary" (click)="finish()" [disabled]="loading">
+            Finish
           </button>
-
-          <button mat-button (click)="refreshStatuses()">Refresh status</button>
-
-          <span style="flex:1"></span>
-          <button mat-button matStepperPrevious>Back</button>
-          <button mat-button matStepperNext>Finish</button>
         </div>
-      </mat-step>
-
-      <!-- Step 4 -->
-      <mat-step>
-        <ng-template matStepLabel>Done</ng-template>
-        <p>✅ Onboarding complete.</p>
-        <button mat-raised-button color="primary" routerLink="/dashboard">Go to dashboard</button>
-      </mat-step>
-    </mat-stepper>
-  </mat-card>
-</div>
+      </div>
+    </mat-step>
+  </mat-stepper>
+</mat-card>

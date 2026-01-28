@@ -1,23 +1,28 @@
 import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
+import { Observable } from "rxjs";
 import { environment } from "../../../environments/environment";
 
-export type BusinessUpdateDto = {
-  businessName: string;
+export type BusinessDto = {
+  _id?: string;
+  name: string;
   timezone: string;
+  phoneNumberId?: string | null;
+  wabaId?: string | null;
 };
 
 @Injectable({ providedIn: "root" })
 export class BusinessService {
-  private base = environment.apiBaseUrl;
+  private api = environment.apiBaseUrl;
 
   constructor(private http: HttpClient) {}
 
-  get() {
-    return this.http.get<any>(`${this.base}/api/business`);
+  getBusiness(): Observable<BusinessDto> {
+    return this.http.get<BusinessDto>(`${this.api}/api/business`);
   }
 
-  update(dto: BusinessUpdateDto) {
-    return this.http.put<any>(`${this.base}/api/business`, dto);
+  // Onboarding expects `updateBusiness`
+  updateBusiness(payload: Partial<BusinessDto>): Observable<BusinessDto> {
+    return this.http.put<BusinessDto>(`${this.api}/api/business`, payload);
   }
 }

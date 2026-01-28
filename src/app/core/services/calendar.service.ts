@@ -1,26 +1,45 @@
 import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
+import { Observable, Subject } from "rxjs";
+import { shareReplay, startWith, switchMap } from "rxjs/operators";
 import { environment } from "../../../environments/environment";
 
-export type CalendarConnectionStatus = {
+export type CalendarStatus = {
   provider: "google";
   connected: boolean;
   calendarId: string;
-  timezone: string;
-  updatedAt: string | null;
+  timezone?: string;
+  connectedEmail?: string | null;
+  updatedAt?: string | null;
 };
 
 @Injectable({ providedIn: "root" })
 export class CalendarService {
-  private base = environment.apiBaseUrl;
+  private api = environment.apiBaseUrl;
+  private refresh$ = new Subject<void>();
+
+  // Onboarding expects `calendar.status`
+  status: Observable<CalendarStatus> = this.refresh$.pipe(
+    startWith(void 0),
+    switchMap(() => this.getConnections()),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
 
   constructor(private http: HttpClient) {}
 
-  getConnections() {
-    return this.http.get<CalendarConnectionStatus>(`${this.base}/api/calendar/connections`);
+  getConnections(): Observable<CalendarStatus> {
+    return this.http.get<CalendarStatus>(`${this.api}/api/calendar/connections`);
   }
 
-  getGoogleConnectUrl() {
-    return this.http.get<{ url: string }>(`${this.base}/api/calendar/google/connect-url`);
+  getConnectUrl(): Observable<{ url: string }> {
+    return this.http.get<{ url: string }>(`${this.api}/api/calendar/google/connect-url`);
+  }
+
+  disconnectGoogle(): Observable<{ ok: true }> {
+    return this.http.post<{ ok: true }>(`${this.api}/api/calendar/google/disconnect`, {});
+  }
+
+  refresh() {
+    this.refresh$.next();
   }
 }
