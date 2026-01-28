@@ -1,11 +1,9 @@
 <mat-card style="max-width: 900px; margin: 24px auto; padding: 16px;">
   <h2 style="margin-top: 0;">Onboarding</h2>
 
-  <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
-
   <mat-stepper linear #stepper>
     <!-- Step 1: Business -->
-    <mat-step [completed]="businessForm.valid">
+    <mat-step [stepControl]="businessForm">
       <ng-template matStepLabel>Business Profile</ng-template>
 
       <form [formGroup]="businessForm" style="display: grid; gap: 12px; margin-top: 12px;">
@@ -20,19 +18,26 @@
         </mat-form-field>
 
         <div style="display: flex; justify-content: flex-end; gap: 12px;">
-          <button mat-raised-button color="primary" (click)="saveBusinessAndContinue(stepper)" [disabled]="loading">
-            Save & Continue
+          <button
+            mat-raised-button
+            color="primary"
+            type="button"
+            (click)="saveBusinessAndNext(stepper)"
+            [disabled]="savingBusiness || businessForm.invalid"
+          >
+            {{ savingBusiness ? "Saving..." : "Save & Next" }}
           </button>
         </div>
       </form>
     </mat-step>
 
     <!-- Step 2: WhatsApp -->
-    <mat-step>
+    <mat-step [stepControl]="whatsappForm">
       <ng-template matStepLabel>WhatsApp</ng-template>
 
       <div style="margin-top: 12px;">
-        <p>
+        <!-- Optional status line (safe even if you don't have whatsappStatus loaded) -->
+        <p style="margin: 0 0 8px 0; opacity: 0.9;">
           Status:
           <strong>
             {{ whatsappStatus?.connected ? "Connected ✅" : "Not connected ❌" }}
@@ -56,17 +61,32 @@
           </mat-form-field>
 
           <div style="display: flex; justify-content: space-between; gap: 12px; align-items: center;">
-            <button mat-button matStepperPrevious [disabled]="loading">Back</button>
+            <button mat-button type="button" matStepperPrevious [disabled]="savingWhatsapp">
+              Back
+            </button>
 
-            <button mat-raised-button color="primary" (click)="connectWhatsAppAndContinue(stepper)" [disabled]="loading">
-              Save & Continue
+            <button
+              mat-raised-button
+              color="primary"
+              type="button"
+              (click)="saveWhatsappAndNext(stepper)"
+              [disabled]="savingWhatsapp || whatsappForm.invalid"
+            >
+              {{ savingWhatsapp ? "Saving..." : "Save & Next" }}
             </button>
           </div>
         </form>
 
-        <p style="margin-top: 16px; opacity: 0.8;">
-          Tip: Your client can generate these in Meta → WhatsApp → API Setup. You can keep a manual flow now and later add Embedded Signup.
-        </p>
+        <mat-card style="margin-top: 16px; padding: 12px;">
+          <div style="font-weight: 600; margin-bottom: 6px;">Manual client flow (production)</div>
+          <ol style="margin: 0; padding-left: 18px; opacity: 0.9;">
+            <li>Meta Business Manager → Business Settings → verify business (recommended)</li>
+            <li>Meta Developers → create App → add WhatsApp product</li>
+            <li>WhatsApp → API Setup → copy WABA ID + Phone Number ID</li>
+            <li>Create a permanent token (system user token is best)</li>
+            <li>Paste the IDs + token here and Save</li>
+          </ol>
+        </mat-card>
       </div>
     </mat-step>
 
@@ -75,20 +95,53 @@
       <ng-template matStepLabel>Google Calendar</ng-template>
 
       <div style="margin-top: 12px;">
-        <p>
+        <p style="margin: 0 0 8px 0;">
           Status:
           <strong>
             {{ calendarStatus?.connected ? "Connected ✅" : "Not connected ❌" }}
           </strong>
         </p>
 
-        <div style="display: flex; justify-content: space-between; gap: 12px; margin-top: 16px;">
-          <button mat-button matStepperPrevious [disabled]="loading">Back</button>
-
-          <button mat-raised-button color="primary" (click)="connectGoogle()" [disabled]="loading">
-            Connect Google
+        <div style="display: grid; gap: 10px; margin-top: 16px;">
+          <button
+            mat-raised-button
+            color="primary"
+            type="button"
+            (click)="connectGoogle()"
+            [disabled]="loadingCalendar"
+          >
+            Connect Google (opens new tab)
           </button>
+
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="refreshCalendarStatus(); (calendarStatus?.connected ? stepper.next() : null)"
+            [disabled]="loadingCalendar"
+          >
+            I finished connecting → Refresh status
+          </button>
+
+          <div style="display: flex; justify-content: space-between; gap: 12px; align-items: center;">
+            <button mat-button type="button" matStepperPrevious [disabled]="loadingCalendar">
+              Back
+            </button>
+
+            <button
+              mat-raised-button
+              color="primary"
+              type="button"
+              (click)="stepper.next()"
+              [disabled]="!calendarStatus?.connected"
+            >
+              Next
+            </button>
+          </div>
         </div>
+
+        <p style="margin-top: 12px; opacity: 0.75;">
+          After approving Google in the new tab, come back and click “Refresh status”.
+        </p>
       </div>
     </mat-step>
 
@@ -97,12 +150,15 @@
       <ng-template matStepLabel>Finish</ng-template>
 
       <div style="margin-top: 12px;">
-        <p>All set. You can now use the dashboard.</p>
+        <p>All set.</p>
 
         <div style="display: flex; justify-content: space-between; gap: 12px;">
-          <button mat-button matStepperPrevious [disabled]="loading">Back</button>
-          <button mat-raised-button color="primary" (click)="finish()" [disabled]="loading">
-            Finish
+          <button mat-button type="button" matStepperPrevious>
+            Back
+          </button>
+
+          <button mat-raised-button color="primary" type="button" (click)="finish()">
+            Go to Dashboard
           </button>
         </div>
       </div>
