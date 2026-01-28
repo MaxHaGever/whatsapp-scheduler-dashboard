@@ -39,6 +39,7 @@ import { CalendarService, CalendarConnectionStatus } from "../../core/services/c
 export class OnboardingComponent implements OnInit {
   private fb = inject(FormBuilder);
   private snack = inject(MatSnackBar);
+
   private businessApi = inject(BusinessService);
   private waApi = inject(WhatsAppService);
   private calApi = inject(CalendarService);
@@ -65,7 +66,6 @@ export class OnboardingComponent implements OnInit {
   }
 
   loadInitial() {
-    // best effort: load business + statuses
     this.businessApi.get().subscribe({
       next: (b) => {
         if (b?.businessName) this.businessForm.patchValue({ businessName: b.businessName });
@@ -103,7 +103,6 @@ export class OnboardingComponent implements OnInit {
       next: () => {
         this.loadingBusiness = false;
         this.snack.open("Business saved", "Close", { duration: 2000 });
-        this.refreshStatuses();
       },
       error: (err) => {
         this.loadingBusiness = false;
